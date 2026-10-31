@@ -451,6 +451,7 @@ function resize(){
 addEventListener('resize', resize); resize();
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TEST = /[?&]test\b/.test(location.search) ? { markers:[] } : null;
 const store = {
   get(k,d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
@@ -2095,6 +2096,7 @@ function edgeMarker(wx, wy, ox, oy, col, label, big){
   const kx = c > 0 ? (W - side - cx)/c : c < 0 ? (side - cx)/c : Infinity;
   const ky = s > 0 ? (H - bottom - cy)/s : s < 0 ? (top - cy)/s : Infinity;
   const k = Math.min(kx, ky), ix = cx + c*k, iy = cy + s*k;
+  if (TEST){ TEST.markers.push({ label, x:ix, y:iy, t:performance.now() }); if (TEST.markers.length > 2000) TEST.markers.shift(); }
   const pulse = 1 + Math.sin(S.t*8)*0.12, sc = (big ? 1.7 : 1)*pulse;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -2721,6 +2723,25 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+/* ================= TEST HOOK =================
+   Only active when the page is opened with ?test in the URL (the automated test suite does this).
+   Gives tests read access to game state and a few controls, so they can check behaviour without
+   playing for five minutes. Normal players never get this object. */
+if (TEST){
+  // defineProperties (not Object.assign) so `state` and `mode` stay live getters instead of one-time snapshots
+  window.PrismTest = Object.defineProperties(TEST, Object.getOwnPropertyDescriptors({
+    get state(){ return S; },
+    get mode(){ return mode; },
+    meta, UPS, EVOS, RELICS, WEAPONS, ARENAS, DIFF, RUN,
+    start, goTitle, spawnEnemy, spawnMidBoss, makeElite, rollUpgrades, kill, hurt,
+    // keeps the player alive and stops the spawner, so a test controls exactly what is on screen
+    god(){ S.p.maxHp = S.p.hp = 1e9; S.p.inv = 1e9; },
+    calm(){ S.spawnT = 1e9; S.nextSwarm = 1e9; S.nextBoss = 1e9; for (const e of S.enemies) e.dead = true; },
+    noLevelUps(){ S.xpNext = 1e12; },
+    give(id, n){ const u = UPS.find(x => x.id === id); for (let i=0; i<(n||1); i++){ u.ap(S.stats, S.p); S.ups[id] = (S.ups[id]||0) + 1; } }
+  }));
+}
 })();
 </script>
 </body>

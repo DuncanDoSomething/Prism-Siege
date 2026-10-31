@@ -1,5 +1,7 @@
 # Prism Siege
 
+[![Tests](https://github.com/DuncanDoSomething/Prism-Siege/actions/workflows/tests.yml/badge.svg)](https://github.com/DuncanDoSomething/Prism-Siege/actions/workflows/tests.yml)
+
 **A neon arena survivor where every kill refracts your shot into coloured shards that keep hunting.**
 
 ### ▶ [Play it in your browser](https://duncandosomething.github.io/Prism-Siege/)
@@ -52,10 +54,41 @@ A lot of the game came straight out of those playtests:
 
 ## How it's built
 
-- **One HTML file, no build step and no dependencies.** Plain JavaScript on an HTML5 canvas.
+- **One HTML file.** The game has no build step and no runtime dependencies: plain JavaScript on an HTML5 canvas.
 - **No image or audio assets.** Every ship, enemy, boss and effect is drawn in code, and all sound effects and music are synthesised live with the Web Audio API.
 - **Saves to `localStorage`.** Your Light, unlocks, codex and run history stay in your browser.
 - Fonts: [Bungee](https://fonts.google.com/specimen/Bungee) and [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) from Google Fonts.
+
+## Testing
+
+The game has an automated end-to-end test suite built with [Playwright](https://playwright.dev). It runs on every push and pull request through GitHub Actions, on a desktop browser and an emulated phone.
+
+| Spec | What it checks |
+| --- | --- |
+| `smoke` | The game loads without errors and the clock runs |
+| `navigation` | Every menu opens and closes, pausing really stops time |
+| `run` | A mid-boss arrives at 1:00, the White Light at 5:00, winning unlocks the next Intensity, dying is recorded in history, combo tiers pay out |
+| `bosses` | Each mid-boss spawns and drops a relic chest, Gemini's twin goes berserk, the tether is telegraphed, the Singularity pulls you in |
+| `combat` | All four weapons deal damage, kills refract, near misses are counted, Normal and Hard handle experience differently, enemies scale up over the run |
+| `progression` | Lab purchases spend Light and survive a reload, locked items can't be picked, settings are remembered, broken or old saves still load |
+| `regression` | Bugs found while playtesting stay fixed |
+| `mobile` | No screen scrolls sideways on a phone, touch shows the dash button and dragging steers |
+
+**How the tests control the game.** A game runs in real time, and nobody wants a test that waits five minutes for the final boss. When the page is opened with `?test` in the URL, it exposes a small `window.PrismTest` object. With it, tests can read the game state, jump the clock forward, spawn bosses and turn on a sandbox (no deaths, no random spawns), so each test sets up exactly the situation it checks. Normal players never get this object, and one test checks that it stays hidden without `?test`.
+
+**Every test also fails on console errors.** A shared fixture listens for uncaught exceptions and `console.error` calls, so a test that passes its assertions but makes the game throw still fails.
+
+**The regression tests were checked against the bugs.** Each one was run against a copy of the game with its bug put back in, to confirm it fails there and passes on the fixed version. The suite also ran three times in a row without a flaky result.
+
+### Run the tests yourself
+
+```bash
+npm install
+npx playwright install chromium
+npm test            # the whole suite, headless
+npm run test:ui     # Playwright's interactive UI
+npm run report      # open the HTML report of the last run
+```
 
 ## Run it locally
 
